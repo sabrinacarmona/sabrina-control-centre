@@ -4,7 +4,7 @@
   "description": "A private, \"Apple-Dark-Mode\" inspired life-optimization dashboard designed for deep focus and intentionality.",
   "main": "test-dashboard.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "server": "node server.js",
     "client": "npm run dev --prefix client",
     "start": "node server.js",

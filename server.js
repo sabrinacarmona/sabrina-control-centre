@@ -19,6 +19,9 @@ const { deduplicateTrips } = require('./utils/deduplication');
 const http = require('http');
 const WebSocket = require('ws');
 
+// --- Initialization: Database Path (for backup cron) ---
+const DB_PATH = path.resolve(__dirname, (process.env.DATABASE_URL || 'file:./database.db').replace('file:', ''));
+
 // --- Initialization: Cache ---
 // TTL is 300 seconds (5 minutes)
 const apiCache = new NodeCache({ stdTTL: 300 });
@@ -566,8 +569,9 @@ Schema to follow EXACTLY:
       {
         "Type": "Flight | Hotel | Train | Other",
         "Name": "Short description (e.g. BA285 to SFO)",
-        "DateTime": "MMM D, HH:mm",
-        "ConfirmationCode": "Found code or N/A"
+        "Date": "YYYY-MM-DD",
+        "Time": "HH:mm or null",
+        "Confirmation": "Found code or N/A"
       }
     ]
   }
