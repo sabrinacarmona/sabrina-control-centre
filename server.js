@@ -16,6 +16,8 @@ const nodemailer = require('nodemailer');
 const { z } = require('zod');
 const { TripsResponseSchema } = require('./schemas/zodSchemas');
 const { deduplicateTrips } = require('./utils/deduplication');
+const http = require('http');
+const WebSocket = require('ws');
 
 // --- Initialization: Cache ---
 // TTL is 300 seconds (5 minutes)
@@ -440,6 +442,11 @@ const syncTripsForContext = async (context) => {
     activeSyncs.add(context);
     console.log(`[Trip Sync] Starting sync for context: ${context}`);
 
+    // Broadcast to connected WebSocket clients
+    if (typeof broadcastEvent === 'function') {
+        broadcastEvent('TRIP_SYNC_START', { context });
+    }
+
     try {
         const auth = await getOAuth2Client();
         if (!auth) {
@@ -588,113 +595,49 @@ ${JSON.stringify(combinedData)}
         saveGroupedTripsToDb(context, groupedTrips);
 
         console.log(`[Trip Sync] Successfully synced trips for ${context}`);
+        if (typeof broadcastEvent === 'function') {
+            broadcastEvent('TRIP_SYNC_COMPLETE', { context });
+        }
     } catch (err) {
         console.error(`[Trip Sync] Error syncing context ${context}:`, err);
+        if (typeof broadcastEvent === 'function') {
+            broadcastEvent('TRIP_SYNC_ERROR', { context, error: err.message });
+        }
     } finally {
         activeSyncs.delete(context);
     }
 };
 
-// --- Gemini Auto-Pilot (Predictive Task Capture) ---
-cron.schedule('*/15 * * * *', async () => {
-    console.log('[Cron] Running Gemini Auto-Pilot predictive task capture...');
+// --- Webhooks (Replaces Polling) ---
+// Note: Requires configuring Google Cloud Pub/Sub and granting Gmail API publish rights.
+app.post('/api/webhooks/gmail', async (req, res) => {
     try {
+        const message = req.body.message;
+        if (!message || !message.data) {
+            return res.status(400).send('Bad Request: Invalid Pub/Sub message format');
+        }
+
+        // The data is base64 encoded by Pub/Sub
+        const decodedData = Buffer.from(message.data, 'base64').toString('utf-8');
+        const payload = JSON.parse(decodedData);
+
+        console.log(`[Webhook] Received Gmail push notification for user: ${payload.emailAddress}`);
+
+        // Acknowledge receipt immediately so Google doesn't retry
+        res.status(200).send('OK');
+
+        // Kick off sync asynchronously
         const auth = await getOAuth2Client();
-        if (!auth || !ai) {
-            console.log('[Auto-Pilot] Skipping. Missing Auth or Gemini AI.');
-            return;
+        if (auth) {
+            // In a real app, you might look at payload.historyId to fetch only changes
+            // For now, we perform our standard structured syncs.
+            syncTripsForContext('professional');
+            syncTripsForContext('personal');
         }
-
-        const gmail = google.gmail({ version: 'v1', auth });
-        const calendar = google.calendar({ version: 'v3', auth });
-
-        // 1. Fetch unread emails
-        let unreadEmails = [];
-        try {
-            const response = await gmail.users.messages.list({
-                userId: 'me',
-                q: 'is:unread in:inbox',
-                maxResults: 15
-            });
-            if (response.data.messages) {
-                const msgs = await Promise.all(response.data.messages.map(async (m) => {
-                    const detail = await gmail.users.messages.get({
-                        userId: 'me',
-                        id: m.id,
-                        format: 'metadata',
-                        metadataHeaders: ['Subject', 'From']
-                    });
-                    const headers = detail.data.payload.headers;
-                    const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
-                    const from = headers.find(h => h.name === 'From')?.value || 'Unknown';
-                    return { id: m.id, type: 'email', subject, from, snippet: detail.data.snippet };
-                }));
-                unreadEmails = msgs;
-            }
-        } catch (e) { console.error('[Auto-Pilot] Gmail fetch failed', e.message); }
-
-        // 2. Fetch upcoming events (Next 48h)
-        let upcomingEvents = [];
-        try {
-            const timeMin = new Date();
-            const timeMax = new Date(timeMin.getTime() + 48 * 60 * 60 * 1000);
-
-            const response = await calendar.events.list({
-                calendarId: 'primary',
-                timeMin: timeMin.toISOString(),
-                timeMax: timeMax.toISOString(),
-                maxResults: 15,
-                singleEvents: true,
-                orderBy: 'startTime',
-            });
-            if (response.data.items) {
-                upcomingEvents = response.data.items.map(e => ({
-                    id: e.id,
-                    type: 'calendar',
-                    summary: e.summary,
-                    start: e.start.dateTime || e.start.date
-                }));
-            }
-        } catch (e) { console.error('[Auto-Pilot] Calendar fetch failed', e.message); }
-
-        const combinedData = [...unreadEmails, ...upcomingEvents];
-        if (combinedData.length === 0) return;
-
-        // 3. Send to Gemini
-        const prompt = `
-You are an elite Executive Assistant. Review these unread emails and upcoming events. Ignore newsletters, spam, and FYI emails. Find ONLY explicit action items or tasks the user needs to complete. Return a strict JSON array of objects with the schema: [{ "title": "Short task name", "sourceId": "The email ID or event ID" }].
-
-Raw Data:
-${JSON.stringify(combinedData)}
-`;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-
-        const responseText = response.text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const extractedTasks = JSON.parse(responseText);
-
-        let addedCount = 0;
-        // 4. Inject into Database
-        for (const task of extractedTasks) {
-            if (!task.sourceId || !task.title) continue;
-
-            // Deduplication
-            const existing = db.prepare('SELECT 1 FROM tasks WHERE source_reference = ?').get(task.sourceId);
-            if (!existing) {
-                const newId = 'gen_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 5);
-                const newTitle = "✨ " + task.title;
-                db.prepare('INSERT INTO tasks (id, title, status, context_mode, source_reference) VALUES (?, ?, ?, ?, ?)')
-                    .run(newId, newTitle, 'todo', 'both', task.sourceId);
-                addedCount++;
-            }
-        }
-        console.log(`[Auto-Pilot] Extracted and added ${addedCount} new tasks.`);
-
     } catch (err) {
-        console.error('[Auto-Pilot] Error during execution:', err);
+        console.error('[Webhook] Error processing Gmail notification:', err);
+        // Return 500 to trigger Google Cloud Pub/Sub retry backoff if there's a serious failure
+        res.status(500).send('Internal Server Error');
     }
 });
 
@@ -1180,6 +1123,24 @@ app.post('/api/mailcraft/send', async (req, res) => {
     }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server, path: '/ws' });
+
+wss.on('connection', (ws) => {
+    console.log('[WebSocket] Client connected');
+    ws.on('close', () => console.log('[WebSocket] Client disconnected'));
+});
+
+// Broadcast helper for real-time UI updates
+function broadcastEvent(type, payload) {
+    const message = JSON.stringify({ type, payload });
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    });
+}
+
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT} (0.0.0.0 binding)`);
 });

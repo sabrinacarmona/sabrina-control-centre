@@ -4,7 +4,7 @@ import { useDataFetch } from '../hooks/useDataFetch'; // For re-fetching inbox a
 const TONES = ['professional', 'warm', 'concise', 'friendly', 'formal', 'persuasive', 'apologetic', 'grateful'];
 
 export default function MailCraft({ context, mailcraftData, onClose }) {
-    const { refetch: refetchInbox } = useDataFetch('inbox', context, 300000, false); // Don't auto-fetch, just want the refetch function
+    const { refetch: refetchInbox } = useDataFetch('inbox', context); // Don't auto-fetch, just want the refetch function
 
     const [activeTone, setActiveTone] = useState('professional');
     const [draftText, setDraftText] = useState('');

@@ -1,7 +1,7 @@
 import { useDataFetch } from '../hooks/useDataFetch';
 
 export default function Calendar({ context }) {
-    const { data: events, isLoading, error } = useDataFetch('calendar', context, 300000); // 5 min polling
+    const { data: events, isLoading, error } = useDataFetch('calendar', context);
 
     return (
         <div className="flex flex-col flex-grow overflow-hidden">

@@ -1,7 +1,7 @@
 import { useDataFetch } from '../hooks/useDataFetch';
 
 export default function ActionableInbox({ context, onOpenMailcraft }) {
-    const { data: messages, isLoading, error } = useDataFetch('inbox', context, 300000); // Poll every 5 mins
+    const { data: messages, isLoading, error } = useDataFetch('inbox', context);
 
     // Mock Office 365 logic for professional context
     if (context === 'professional') {

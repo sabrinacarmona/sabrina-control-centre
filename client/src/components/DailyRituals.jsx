@@ -1,7 +1,7 @@
 import { useDataFetch } from '../hooks/useDataFetch';
 
 export default function DailyRituals({ context }) {
-    const { data: rituals, isLoading, error, refetch } = useDataFetch('rituals', context, 600000); // 10 min polling
+    const { data: rituals, isLoading, error, refetch } = useDataFetch('rituals', context);
 
     const handleToggle = async (id, currentStatus) => {
         try {

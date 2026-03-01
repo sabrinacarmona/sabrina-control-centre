@@ -1,9 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDataFetch } from '../hooks/useDataFetch';
+import { useWebSocket } from '../contexts/WebSocketContext';
 
 export default function UpcomingTrips({ context }) {
-    const { data: groupedTrips, isLoading, error, refetch } = useDataFetch('trips', context, 600000); // 10 min polling
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const { data: groupedTrips, isLoading, error, refetch } = useDataFetch('trips', context);
+    const ws = useWebSocket();
+    const latestEvent = ws ? ws.latestEvent : null;
+    const isSyncing = latestEvent && latestEvent.type === 'TRIP_SYNC_START' && (!latestEvent.payload.context || latestEvent.payload.context === context || context === 'both' || latestEvent.payload.context === 'both');
     const [expandedTrips, setExpandedTrips] = useState({});
+
+    // Clear syncing state when complete
+    useEffect(() => {
+        if (latestEvent && (latestEvent.type === 'TRIP_SYNC_COMPLETE' || latestEvent.type === 'TRIP_SYNC_ERROR')) {
+            // isSyncing derived state naturally handles this since the type changes
+        }
+    }, [latestEvent]);
 
     const toggleTrip = (index) => {
         setExpandedTrips(prev => ({
