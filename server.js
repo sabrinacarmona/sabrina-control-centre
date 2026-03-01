@@ -1188,6 +1188,10 @@ function broadcastEvent(type, payload) {
     });
 }
 
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT} (0.0.0.0 binding)`);
-});
+if (require.main === module) {
+    server.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on port ${PORT} (0.0.0.0 binding)`);
+    });
+}
+
+module.exports = app;
