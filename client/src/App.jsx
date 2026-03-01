@@ -12,6 +12,7 @@ import ZenOverlay from './components/ZenOverlay';
 import { AuthProvider } from './contexts/AuthContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import AuthModal from './components/AuthModal';
+import LoginGate from './components/LoginGate';
 
 function App() {
   const [context, setContext] = useState('both'); // 'both', 'personal', 'professional'
@@ -35,6 +36,7 @@ function App() {
   }, [context]);
 
   return (
+    <LoginGate>
     <AuthProvider>
       <WebSocketProvider>
         <div className="min-h-screen relative flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8 font-sans">
@@ -85,6 +87,7 @@ function App() {
         </div>
       </WebSocketProvider>
     </AuthProvider>
+    </LoginGate>
   )
 }
 

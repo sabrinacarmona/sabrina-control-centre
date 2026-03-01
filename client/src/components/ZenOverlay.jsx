@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDataFetch } from '../hooks/useDataFetch';
+import { getAuthToken } from '../utils/api';
 
 export default function ZenOverlay({ isZenMode, setIsZenMode, context }) {
     const { data: tasksData, isLoading, forceRefetch } = useDataFetch('tasks', context);
@@ -69,9 +70,12 @@ export default function ZenOverlay({ isZenMode, setIsZenMode, context }) {
         if (totalSeconds >= 60) {
             const minutesFocused = Math.floor(totalSeconds / 60);
             try {
+                const pomHeaders = { 'Content-Type': 'application/json' };
+                const pomToken = getAuthToken();
+                if (pomToken) pomHeaders['Authorization'] = `Bearer ${pomToken}`;
                 await fetch(`/api/pomodoros`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: pomHeaders,
                     body: JSON.stringify({ duration_minutes: minutesFocused })
                 });
             } catch (err) {
@@ -83,9 +87,12 @@ export default function ZenOverlay({ isZenMode, setIsZenMode, context }) {
     const handleMarkComplete = async () => {
         if (!zenTask) return;
         try {
+            const taskHeaders = { 'Content-Type': 'application/json' };
+            const taskToken = getAuthToken();
+            if (taskToken) taskHeaders['Authorization'] = `Bearer ${taskToken}`;
             await fetch(`/api/tasks/${zenTask.id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: taskHeaders,
                 body: JSON.stringify({ status: 'done' })
             });
             forceRefetch(); // Refresh tasks

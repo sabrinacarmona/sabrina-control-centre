@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { API_BASE } from '../utils/api';
+import { API_BASE, getAuthToken } from '../utils/api';
 
 export default function AuthModal({ onAuthSuccess }) {
     const { isAuthModalOpen, setIsAuthModalOpen } = useAuth();
@@ -11,7 +11,10 @@ export default function AuthModal({ onAuthSuccess }) {
 
     useEffect(() => {
         if (isAuthModalOpen) {
-            fetch(`${API_BASE}/auth/url`)
+            const headers = {};
+            const token = getAuthToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            fetch(`${API_BASE}/auth/url`, { headers })
                 .then(res => res.json())
                 .then(data => {
                     if (data.url) {
@@ -35,9 +38,12 @@ export default function AuthModal({ onAuthSuccess }) {
         if (!authCode.trim()) return;
         setIsSubmitting(true);
         try {
+            const reqHeaders = { 'Content-Type': 'application/json' };
+            const tk = getAuthToken();
+            if (tk) reqHeaders['Authorization'] = `Bearer ${tk}`;
             const res = await fetch(`${API_BASE}/auth/token`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: reqHeaders,
                 body: JSON.stringify({ code: authCode.trim() })
             });
             const data = await res.json();

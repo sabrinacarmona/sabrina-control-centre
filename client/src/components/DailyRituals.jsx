@@ -1,11 +1,12 @@
 import { useDataFetch } from '../hooks/useDataFetch';
+import { getAuthToken } from '../utils/api';
 
 export default function DailyRituals({ context }) {
     const { data: rituals, isLoading, error, refetch } = useDataFetch('rituals', context);
 
     const handleToggle = async (id, currentStatus) => {
         try {
-            const token = localStorage.getItem('google_auth_token') || '';
+            const token = getAuthToken() || '';
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -24,7 +25,7 @@ export default function DailyRituals({ context }) {
         const title = prompt("Enter new daily ritual:");
         if (!title || !title.trim()) return;
         try {
-            const token = localStorage.getItem('google_auth_token') || '';
+            const token = getAuthToken() || '';
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -42,7 +43,7 @@ export default function DailyRituals({ context }) {
     const handleDelete = async (id) => {
         if (!confirm("Delete this daily ritual?")) return;
         try {
-            const token = localStorage.getItem('google_auth_token') || '';
+            const token = getAuthToken() || '';
             const headers = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 

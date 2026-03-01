@@ -51,6 +51,27 @@ app.use(helmet({
 }));
 app.use(cors({ origin: ['http://localhost:3000', process.env.RAILWAY_URL || ''] }));
 app.use(express.json());
+
+// --- Access Control Gate ---
+// Set AUTH_PASSWORD in .env to protect all API routes.
+// When set, clients must send `Authorization: Bearer <password>` on every request.
+if (process.env.AUTH_PASSWORD) {
+    app.post('/api/auth/login', (req, res) => {
+        if (req.body.password === process.env.AUTH_PASSWORD) {
+            res.json({ success: true });
+        } else {
+            res.status(401).json({ error: 'Invalid password' });
+        }
+    });
+
+    app.use('/api', (req, res, next) => {
+        if (req.path === '/auth/login') return next();
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        if (token === process.env.AUTH_PASSWORD) return next();
+        res.status(401).json({ error: 'Unauthorized' });
+    });
+}
+
 // Serve static frontend files
 app.use(express.static(path.join(__dirname)));
 

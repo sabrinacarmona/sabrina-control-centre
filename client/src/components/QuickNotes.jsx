@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDataFetch } from '../hooks/useDataFetch';
+import { getAuthToken } from '../utils/api';
 
 export default function QuickNotes({ context, isVisible = true }) {
     const { data: notesData, isLoading, error } = useDataFetch('notes', context);
@@ -30,7 +31,7 @@ export default function QuickNotes({ context, isVisible = true }) {
         setSaveStatus('Saving...');
         timeoutRef.current = setTimeout(async () => {
             try {
-                const token = localStorage.getItem('google_auth_token') || '';
+                const token = getAuthToken() || '';
                 const headers = { 'Content-Type': 'application/json' };
                 if (token) headers['Authorization'] = `Bearer ${token}`;
 

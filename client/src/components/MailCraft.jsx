@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDataFetch } from '../hooks/useDataFetch'; // For re-fetching inbox after send
+import { getAuthToken } from '../utils/api';
 
 const TONES = ['professional', 'warm', 'concise', 'friendly', 'formal', 'persuasive', 'apologetic', 'grateful'];
 
@@ -54,7 +55,7 @@ export default function MailCraft({ context, mailcraftData, onClose }) {
         setIsGenerating(true);
 
         try {
-            const token = localStorage.getItem('google_auth_token') || '';
+            const token = getAuthToken() || '';
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -146,7 +147,7 @@ export default function MailCraft({ context, mailcraftData, onClose }) {
         setSendStatus('Sending...');
 
         try {
-            const token = localStorage.getItem('google_auth_token') || '';
+            const token = getAuthToken() || '';
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 

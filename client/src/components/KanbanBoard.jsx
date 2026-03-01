@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDataFetch } from '../hooks/useDataFetch';
+import { getAuthToken } from '../utils/api';
 
 export default function KanbanBoard({ context }) {
     const { data: tasks, setData, isLoading, error, refetch } = useDataFetch('tasks', context);
@@ -27,7 +28,7 @@ export default function KanbanBoard({ context }) {
         // Optimistic update
         setData(updatedTasks);
         try {
-            const token = localStorage.getItem('google_auth_token') || '';
+            const token = getAuthToken() || '';
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
