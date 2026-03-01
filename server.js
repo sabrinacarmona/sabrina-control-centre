@@ -610,6 +610,28 @@ ${JSON.stringify(combinedData)}
 
 // --- Webhooks (Replaces Polling) ---
 // Note: Requires configuring Google Cloud Pub/Sub and granting Gmail API publish rights.
+
+// 1. Automatically renew the Push subscription watch every 24 hours
+cron.schedule('0 2 * * *', async () => {
+    console.log('[Cron] Renewing Gmail Push Notification Watch Subscription...');
+    try {
+        const auth = await getOAuth2Client();
+        if (!auth) return;
+        const gmail = google.gmail({ version: 'v1', auth });
+
+        await gmail.users.watch({
+            userId: 'me',
+            requestBody: {
+                labelIds: ['INBOX'],
+                labelFilterBehavior: 'INCLUDE',
+                topicName: `projects/${process.env.GCP_PROJECT_ID}/topics/${process.env.GCP_PUBSUB_TOPIC || 'gmail-inbox-updates'}`
+            }
+        });
+        console.log('[Cron] Successfully renewed Gmail watch subscription.');
+    } catch (err) {
+        console.error('[Cron] Failed to renew Gmail watch subscription:', err.message);
+    }
+});
 app.post('/api/webhooks/gmail', async (req, res) => {
     try {
         const message = req.body.message;
